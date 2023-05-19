@@ -1,0 +1,48 @@
+[tool.pyright]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "samtool"
+version = "0.0.1"
+authors = [
+  { name="Jet", email="taijunjet@hotmail.com" },
+]
+description = "SAM powered model for creating semantic segmentation datasets."
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "segment_anything@git+https://github.com/facebookresearch/segment-anything.git",
+  "opencv-python",
+  "pycocotools",
+  "matplotlib",
+  "onnxruntime",
+  "onnx",
+  "torch",
+  "torchvision",
+  "numpy",
+  "pyyaml",
+  "gradio",
+  "wget",
+]
+keywords = ["Machine Learning, Image Segmentation"]
+license = { file="./LICENSE.txt" }
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["samtool"]
+
+[project.scripts]
+samtool = "samtool:main"
+
+[project.urls]
+"Homepage" = "https://github.com/jjshoots/samtool"
