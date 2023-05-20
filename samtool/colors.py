@@ -2,7 +2,6 @@ import numpy as np
 from PIL import ImageColor
 
 colors = [
-    "#000000",
     "#800000",
     "#008000",
     "#808000",
