@@ -1,5 +1,9 @@
 # SAMTool - Semantic Segmentation Dataset Creation powered by Segment Anything Model from Meta
 
+<p align="center">
+    <img src="demo.gif" width="800"/>
+</p>
+
 ## Installation
 
 `pip3 install git+git@github.com:jjshoots/samtool.git`

@@ -11,7 +11,7 @@ from samtool.sammer import Sammer
 def create_demo(imagedir: str, labeldir: str, annotations: str):
     with gr.Blocks() as demo:
 
-        all_images = [f for f in imagedir]
+        all_images = os.listdir(imagedir)
         all_labels = yaml.safe_load(open(annotations))
 
         sam = Sammer(

@@ -5,17 +5,11 @@ import numpy as np
 import torch
 from segment_anything import SamPredictor, sam_model_registry
 
+from samtool.colors import colors
+
 
 class Sammer:
     """Sammer."""
-
-    colors = np.array(
-        [
-            [0, 0, 255],
-            [0, 255, 0],
-            [255, 0, 0],
-        ]
-    )
 
     def __init__(self, labels: dict[str, int], images_path: str, labels_path: str):
         """__init__."""
@@ -190,7 +184,7 @@ class Sammer:
         if not mask.any():
             return image
 
-        color = Sammer.colors[color_index]
+        color = colors[color_index]
         image = image.astype(np.float32)
         image[mask[...], :] += color * 0.5
         image = np.clip(image, 0, 255).astype(np.uint8)
