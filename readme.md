@@ -6,7 +6,7 @@
 
 ## Installation
 
-`pip3 install git+git@github.com:jjshoots/samtool.git`
+`pip3 install git+https://github.com/jjshoots/SAMtool`
 
 ## Usage
 
