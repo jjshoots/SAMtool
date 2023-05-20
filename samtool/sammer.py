@@ -38,6 +38,9 @@ class Sammer:
 
         # downlaod the model if it doesn't exist
         if not os.path.isfile(os.path.join(this_file_path, "sam_vit_l_0b3195.pth")):
+            print(
+                "Model weights not found, downloading them from `https://dl.fbaipublicfiles.com/segment_anything/sam_vit_l_0b3195.pth`..."
+            )
             import wget
 
             wget.download(
