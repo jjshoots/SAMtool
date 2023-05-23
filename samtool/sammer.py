@@ -142,7 +142,7 @@ class Sammer:
         if add:
             comp_mask[..., self.labels[key]] |= self.part_mask
         else:
-            comp_mask[..., self.labels[key]] |= np.logical_not(self.part_mask)
+            comp_mask[..., self.labels[key]] &= np.logical_not(self.part_mask)
         np.save(os.path.join(self.labels_path, filename), comp_mask)
 
         # reset the coords and validity
