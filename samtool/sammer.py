@@ -28,7 +28,7 @@ class Sammer:
 
         # store the base image and mask
         self.base_image: np.ndarray = np.array([])
-        self.part_mask: np.ndarray | None = None
+        self.part_mask: np.ndarray = np.array(None)
 
         # storage for points and validities
         self.coords = list()
@@ -125,7 +125,7 @@ class Sammer:
         return image
 
     def part_to_comp_mask(
-        self, filename: str, key: str
+        self, filename: str, key: str, add: bool = True
     ) -> tuple[np.ndarray, np.ndarray]:
         assert key in self.labels
 
@@ -139,7 +139,10 @@ class Sammer:
             )
 
         # save the mask
-        comp_mask[..., self.labels[key]] |= self.part_mask
+        if add:
+            comp_mask[..., self.labels[key]] |= self.part_mask
+        else:
+            comp_mask[..., self.labels[key]] |= np.logical_not(self.part_mask)
         np.save(os.path.join(self.labels_path, filename), comp_mask)
 
         # reset the coords and validity

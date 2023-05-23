@@ -63,7 +63,9 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
             display_complete = gr.Image(interactive=False, label="Complete Annotation")
 
         # approve the selection
-        button_approve = gr.Button(value="Approve", variant="primary")
+        with gr.Row():
+            button_accept = gr.Button(value="Approve", variant="primary")
+            button_negate = gr.Button(value="Negate", variant="secondary")
 
         """DEFINE INTERFACE FUNCTIONALITY"""
 
@@ -156,9 +158,16 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
             outputs=display_partial,
         )
 
-        # approve the segmentation to be a mask
-        button_approve.click(
-            fn=sam.part_to_comp_mask,
+        # accept the segmentation to mask
+        button_accept.click(
+            fn=lambda x, k: sam.part_to_comp_mask(x, k, add=True),
+            inputs=[dropdown_filename, radio_label],
+            outputs=[display_partial, display_complete],
+        )
+
+        # negate the segmentation to the mask
+        button_negate.click(
+            fn=lambda x, k: sam.part_to_comp_mask(x, k, add=False),
             inputs=[dropdown_filename, radio_label],
             outputs=[display_partial, display_complete],
         )
