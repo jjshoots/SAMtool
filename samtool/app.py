@@ -10,7 +10,6 @@ from samtool.sammer import Sammer
 
 def create_demo(imagedir: str, labeldir: str, annotations: str):
     with gr.Blocks() as demo:
-
         all_images = os.listdir(imagedir)
         all_labels = yaml.safe_load(open(annotations))
 
@@ -57,10 +56,14 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
 
         with gr.Row():
             # the display for annotation
-            display_partial = gr.Image(interactive=False, show_label=False)
+            display_partial = gr.Image(interactive=False, show_label=False).style(
+                width=480
+            )
 
             # the display for everything
-            display_complete = gr.Image(interactive=False, label="Complete Annotation")
+            display_complete = gr.Image(
+                interactive=False, label="Complete Annotation"
+            ).style(width=480)
 
         # approve the selection
         with gr.Row():
@@ -183,6 +186,7 @@ def main():
     parser.add_argument("--imagedir", required=True)
     parser.add_argument("--labeldir", required=True)
     parser.add_argument("--annotations", required=True)
+    parser.add_argument("--share", required=False, default=False)
     args = parser.parse_args()
 
-    create_demo(args.imagedir, args.labeldir, args.annotations).launch()
+    create_demo(args.imagedir, args.labeldir, args.annotations).launch(share=args.share)

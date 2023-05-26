@@ -154,7 +154,6 @@ class Sammer:
     def clear_comp_mask(
         self, filename: str, label: None | str = None
     ) -> tuple[np.ndarray, np.ndarray]:
-
         # get the compound mask
         maskfile = os.path.join(self.labels_path, f"{filename}.npy")
 
