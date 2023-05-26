@@ -186,7 +186,7 @@ def main():
     parser.add_argument("--imagedir", required=True)
     parser.add_argument("--labeldir", required=True)
     parser.add_argument("--annotations", required=True)
-    parser.add_argument("--share", required=False, default=False)
+    parser.add_argument("--share", default=False, action="store_true")
     args = parser.parse_args()
 
     create_demo(args.imagedir, args.labeldir, args.annotations).launch(share=args.share)
