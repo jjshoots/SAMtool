@@ -3,9 +3,51 @@ import os
 import cv2
 import numpy as np
 import torch
+import yaml
 from segment_anything import SamPredictor, sam_model_registry
 
 from samtool.colors import colors
+
+
+class FileSeeker:
+    """FileSeeker.
+
+    Handles searching for next and previous files.
+    """
+
+    def __init__(self, images_path: str, labels_path: str, annotations_path: str):
+        """__init__."""
+        self.images_path = images_path
+        self.labels_path = labels_path
+
+        self.all_images = os.listdir(images_path)
+        self.all_labels = yaml.safe_load(open(annotations_path))
+
+    # next file previous file
+    def file_increment(self, ascend: bool, unlabelled_only: bool, filename: str):
+        try:
+            index = self.all_images.index(filename)
+        except ValueError:
+            index = 0
+
+        while True:
+            index += 1 if ascend else -1
+
+            # don't exceed index
+            if index <= -1 or index >= len(self.all_images):
+                index += 1 if not ascend else -1
+                break
+
+            # we don't care if labelled of unlabelled
+            if not unlabelled_only:
+                break
+
+            # we only care if unlabelled
+            maskfile = os.path.join(self.labels_path, f"{self.all_images[index]}.npy")
+            if not os.path.isfile(maskfile):
+                break
+
+        return self.all_images[index]
 
 
 class Sammer:
@@ -62,7 +104,7 @@ class Sammer:
         self.base_image = cv2.cvtColor(self.base_image, cv2.COLOR_BGR2RGB)
 
         # reset the part mask
-        self.part_mask = None
+        self.part_mask = np.array(None)
 
         # get the complete image
         comp_image = self.update_comp_image(filename)

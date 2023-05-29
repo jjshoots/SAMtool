@@ -3,18 +3,15 @@ import os
 
 import gradio as gr
 import numpy as np
-import yaml
 
-from samtool.sammer import Sammer
+from samtool.sammer import FileSeeker, Sammer
 
 
-def create_demo(imagedir: str, labeldir: str, annotations: str):
-    with gr.Blocks() as demo:
-        all_images = os.listdir(imagedir)
-        all_labels = yaml.safe_load(open(annotations))
-
+def create_app(imagedir: str, labeldir: str, annotations: str):
+    with gr.Blocks() as app:
+        seeker = FileSeeker(imagedir, labeldir, annotations)
         sam = Sammer(
-            all_labels,
+            seeker.all_labels,
             imagedir,
             labeldir,
         )
@@ -23,12 +20,14 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
         # annotation tools
         with gr.Row():
             with gr.Column(scale=1):
-                dropdown_filename = gr.Dropdown(all_images, label="File Selection")
+                dropdown_filename = gr.Dropdown(
+                    seeker.all_images, label="File Selection"
+                )
                 progress = gr.Textbox(show_label=False, interactive=False)
 
             radio_label = gr.Radio(
-                choices=list(all_labels.keys()),
-                value=list(all_labels.keys())[0],
+                choices=list(seeker.all_labels.keys()),
+                value=list(seeker.all_labels.keys())[0],
                 label="Label",
             )
             checkbox_validity = gr.Checkbox(value=True, label="Validity")
@@ -74,7 +73,7 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
 
         def surrogate_reset(filename):
             done_labels = len(os.listdir(labeldir))
-            progress_string = f"{done_labels} of {len(all_images)} completed."
+            progress_string = f"{done_labels} of {len(seeker.all_images)} completed."
             return *sam.reset(filename), progress_string
 
         # filename change
@@ -84,51 +83,31 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
             outputs=[display_partial, display_complete, progress],
         )
 
-        # next file previous file
-        def file_increment(ascend: bool, unlabelled_only: bool, filename: str):
-            try:
-                index = all_images.index(filename)
-            except ValueError:
-                index = 0
-
-            while True:
-                index += 1 if ascend else -1
-
-                # don't exceed index
-                if index <= -1 or index >= len(all_images):
-                    index += 1 if not ascend else -1
-                    break
-
-                # we don't care if labelled of unlabelled
-                if not unlabelled_only:
-                    break
-
-                # we only care if unlabelled
-                maskfile = os.path.join(labeldir, f"{all_images[index]}.npy")
-                if not os.path.isfile(maskfile):
-                    break
-
-            return all_images[index]
-
         button_prev_unlabelled.click(
-            fn=lambda f: file_increment(ascend=False, unlabelled_only=True, filename=f),
+            fn=lambda f: seeker.file_increment(
+                ascend=False, unlabelled_only=True, filename=f
+            ),
             inputs=dropdown_filename,
             outputs=dropdown_filename,
         )
         button_prev.click(
-            fn=lambda f: file_increment(
+            fn=lambda f: seeker.file_increment(
                 ascend=False, unlabelled_only=False, filename=f
             ),
             inputs=dropdown_filename,
             outputs=dropdown_filename,
         )
         button_next.click(
-            fn=lambda f: file_increment(ascend=True, unlabelled_only=False, filename=f),
+            fn=lambda f: seeker.file_increment(
+                ascend=True, unlabelled_only=False, filename=f
+            ),
             inputs=dropdown_filename,
             outputs=dropdown_filename,
         )
         button_next_unlabelled.click(
-            fn=lambda f: file_increment(ascend=True, unlabelled_only=True, filename=f),
+            fn=lambda f: seeker.file_increment(
+                ascend=True, unlabelled_only=True, filename=f
+            ),
             inputs=dropdown_filename,
             outputs=dropdown_filename,
         )
@@ -175,12 +154,12 @@ def create_demo(imagedir: str, labeldir: str, annotations: str):
             outputs=[display_partial, display_complete],
         )
 
-    return demo
+    return app
 
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="SAMTool",
+        prog="SAMTool Gradio",
         description="Semantic Segmentation Dataset Creation Tool powered by Segment Anything Model from Meta.",
     )
     parser.add_argument("--imagedir", required=True)
@@ -189,4 +168,4 @@ def main():
     parser.add_argument("--share", default=False, action="store_true")
     args = parser.parse_args()
 
-    create_demo(args.imagedir, args.labeldir, args.annotations).launch(share=args.share)
+    create_app(args.imagedir, args.labeldir, args.annotations).launch(share=args.share)

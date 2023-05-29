@@ -42,7 +42,8 @@ include-package-data = true
 include = ["samtool"]
 
 [project.scripts]
-samtool = "samtool:main"
+samtool = "samtool:main_gradio"
+samtool-tk = "samtool:main_tk"
 
 [project.urls]
 "Homepage" = "https://github.com/jjshoots/samtool"
