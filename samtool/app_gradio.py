@@ -67,10 +67,12 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             display_partial_instant = gr.Image(
                 interactive=False, show_label=False, visible=False
             ).style(width=480)
-
             display_complete = gr.Image(
                 interactive=False, label="Complete Annotation"
             ).style(width=480)
+
+            # hacky asynchronous update thing
+            checkbox_asyncer = gr.Checkbox(value=False, visible=False, show_label=False)
 
         # approve the selection
         with gr.Row():
@@ -91,7 +93,8 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             done_labels = len(os.listdir(labeldir))
             progress_string = f"{done_labels} of {len(seeker.all_images)} completed."
             filenumber = str(seeker.all_images.index(filename))
-            base_image, comp_image = sam.reset(filename)
+            base_image = sam.reset(filename)
+            comp_image = sam.get_comp_image(filename)
             return base_image, base_image, comp_image, progress_string, filenumber
 
         # filename change
@@ -137,59 +140,89 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             outputs=dropdown_filename,
         )
 
+        def surrogate_clear_comp_mask(filename, label):
+            sam.clear_comp_mask(filename, label)
+            base_image = sam.reset(filename, compute_embeddings=False)
+            comp_image = sam.get_comp_image(filename)
+            return base_image, comp_image
+
         # clear the selection image
         button_reset_selection.click(
             fn=sam.clear_coords_validity, outputs=display_partial_normal
         )
         # clear only the labels in the complete image
         button_reset_label.click(
-            fn=lambda f, l: sam.clear_comp_mask(filename=f, label=l),
+            fn=lambda f, l: surrogate_clear_comp_mask(filename=f, label=l),
             inputs=[dropdown_filename, radio_label],
             outputs=[display_partial_normal, display_complete],
         )
         # clear everything
         button_reset_all.click(
-            fn=lambda f: sam.clear_comp_mask(filename=f, label=None),
+            fn=lambda f: surrogate_clear_comp_mask(filename=f, label=None),
             inputs=dropdown_filename,
             outputs=[display_partial_normal, display_complete],
         )
 
         # normal update
-        def update_prediction_normal(event: gr.SelectData, filename, validity, label):
+        def update_prediction_normal(event: gr.SelectData, validity, label):
             sam.add_coords_validity(np.array(event.index), validity)
             return sam.update_part_image(label)
+
+        def surrogate_part_to_comp_mask(filename, label, add):
+            sam.part_to_comp_mask(filename, label, add=add)
+            base_image = sam.reset(filename, compute_embeddings=False)
+            comp_image = sam.get_comp_image(filename)
+            return base_image, comp_image
 
         # normal mode functionality
         display_partial_normal.select(
             fn=update_prediction_normal,
-            inputs=[dropdown_filename, checkbox_validity, radio_label],
+            inputs=[checkbox_validity, radio_label],
             outputs=display_partial_normal,
         )
         button_accept.click(
-            fn=lambda x, k: sam.part_to_comp_mask(x, k, add=True),
+            fn=lambda x, k: surrogate_part_to_comp_mask(x, k, add=True),
             inputs=[dropdown_filename, radio_label],
             outputs=[display_partial_normal, display_complete],
         )
         button_negate.click(
-            fn=lambda x, k: sam.part_to_comp_mask(x, k, add=False),
+            fn=lambda x, k: surrogate_part_to_comp_mask(x, k, add=False),
             inputs=[dropdown_filename, radio_label],
             outputs=[display_partial_normal, display_complete],
         )
 
         # instant update
-        def update_prediction_instant(event: gr.SelectData, filename, validity, label):
+        def update_prediction_instant(
+            event: gr.SelectData, filename, label, validity, toggle
+        ):
             # always work in valid selection mode, and use validity to determine whether to negate
             sam.add_coords_validity(np.array(event.index), True)
             sam.update_part_image(label)
-            base_image, comp_image = sam.part_to_comp_mask(
-                filename, label, add=validity
-            )
-            return comp_image
+            sam.part_to_comp_mask(filename, label, add=validity)
+
+            # toggle the async function
+            return not toggle
 
         # instant mode functionality
         display_partial_instant.select(
             fn=update_prediction_instant,
-            inputs=[dropdown_filename, checkbox_validity, radio_label],
+            inputs=[
+                dropdown_filename,
+                radio_label,
+                checkbox_validity,
+                checkbox_asyncer,
+            ],
+            outputs=checkbox_asyncer,
+        )
+
+        # hacky async update
+        def async_update_prediction_instant(filename):
+            return sam.get_comp_image(filename)
+
+        # async hook
+        checkbox_asyncer.change(
+            fn=async_update_prediction_instant,
+            inputs=dropdown_filename,
             outputs=display_complete,
         )
 

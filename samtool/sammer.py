@@ -106,14 +106,24 @@ class Sammer:
         # reset the part mask
         self.part_mask = np.array(None)
 
-        # get the complete image
-        comp_image = self.update_comp_image(filename)
-
         # compute the embeddings using the image
         if compute_embeddings:
             self.predictor.set_image(self.base_image)
 
-        return self.base_image, comp_image
+        return self.base_image
+
+    def get_comp_image(self, filename: str) -> np.ndarray:
+        image = self.base_image
+
+        # check if we have a complete mask
+        maskfile = os.path.join(self.labels_path, f"{filename}.npy")
+        if os.path.isfile(maskfile):
+            # draw the masks if we have it
+            comp_mask = np.load(maskfile)
+            for i, mask in enumerate(np.moveaxis(comp_mask, -1, 0).copy()):
+                image = self.show_mask(image, mask, i)
+
+        return image
 
     def clear_coords_validity(self) -> np.ndarray:
         self.coords = list()
@@ -153,22 +163,7 @@ class Sammer:
         else:
             return self.base_image
 
-    def update_comp_image(self, filename: str) -> np.ndarray:
-        image = self.base_image
-
-        # check if we have a complete mask
-        maskfile = os.path.join(self.labels_path, f"{filename}.npy")
-        if os.path.isfile(maskfile):
-            # draw the masks if we have it
-            comp_mask = np.load(maskfile)
-            for i, mask in enumerate(np.moveaxis(comp_mask, -1, 0).copy()):
-                image = self.show_mask(image, mask, i)
-
-        return image
-
-    def part_to_comp_mask(
-        self, filename: str, key: str, add: bool = True
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def part_to_comp_mask(self, filename: str, key: str, add: bool = True):
         assert key in self.labels
 
         # get the compound mask
@@ -190,17 +185,12 @@ class Sammer:
         # reset the coords and validity
         self.clear_coords_validity()
 
-        # regenerate both displays
-        return self.reset(filename, compute_embeddings=False)
-
-    def clear_comp_mask(
-        self, filename: str, label: None | str = None
-    ) -> tuple[np.ndarray, np.ndarray]:
+    def clear_comp_mask(self, filename: str, label: None | str = None):
         # get the compound mask
         maskfile = os.path.join(self.labels_path, f"{filename}.npy")
 
         if not os.path.isfile(maskfile):
-            return self.reset(filename, compute_embeddings=False)
+            return
 
         # if full reset, delete the mask, otherwise, just override
         if label is None:
@@ -213,9 +203,6 @@ class Sammer:
 
         # reset the coords and validity
         self.clear_coords_validity()
-
-        # regenerate both displays
-        return self.reset(filename, compute_embeddings=False)
 
     @staticmethod
     def show_mask(image: np.ndarray, mask: np.ndarray, color_index=0):
