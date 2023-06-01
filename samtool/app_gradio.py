@@ -28,7 +28,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                 )
                 with gr.Row():
                     checkbox_validity = gr.Checkbox(value=True, label="Validity")
-                    checkbox_instant = gr.Checkbox(value=False, label="Instant Mode")
+                    checkbox_instant = gr.Checkbox(value=False, label="Instant Mode (Recommended)")
 
             with gr.Column(scale=1):
                 # file selection
