@@ -20,11 +20,6 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         # annotation tools
         with gr.Row():
             with gr.Column(scale=1):
-                # status
-                progress = gr.Textbox(show_label=False, interactive=False)
-                warnings = gr.Textbox(show_label=False, interactive=False)
-
-            with gr.Column(scale=1):
                 # annotation tools
                 radio_label = gr.Radio(
                     choices=list(seeker.all_labels.keys()),
@@ -37,9 +32,11 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
             with gr.Column(scale=1):
                 # file selection
-                dropdown_filename = gr.Dropdown(
-                    seeker.all_images, label="File Selection"
-                )
+                with gr.Row():
+                    dropdown_filename = gr.Dropdown(
+                        seeker.all_images, label="File Selection"
+                    )
+                    progress = gr.Textbox(show_label=False, interactive=False)
                 with gr.Row():
                     button_prev_unlabelled = gr.Button(
                         value="Prev Unlabelled", variant="primary"
