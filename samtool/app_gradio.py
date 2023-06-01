@@ -33,6 +33,10 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             with gr.Column(scale=1):
                 # file selection
                 with gr.Row():
+                    dropdown_filenumber = gr.Dropdown(
+                        list(str(i) for i in range(len(seeker.all_images))),
+                        label="FileNumber",
+                    )
                     dropdown_filename = gr.Dropdown(
                         seeker.all_images, label="File Selection"
                     )
@@ -75,12 +79,20 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
         """DEFINE INTERFACE FUNCTIONALITY"""
 
+        # filenumber change
+        dropdown_filenumber.change(
+            fn=lambda i: seeker.all_images[int(i)],
+            inputs=dropdown_filenumber,
+            outputs=dropdown_filename,
+        )
+
         def surrogate_reset(filename):
             """Resets everything because the filename has changed."""
             done_labels = len(os.listdir(labeldir))
             progress_string = f"{done_labels} of {len(seeker.all_images)} completed."
+            filenumber = str(seeker.all_images.index(filename))
             base_image, comp_image = sam.reset(filename)
-            return base_image, base_image, comp_image, progress_string
+            return base_image, base_image, comp_image, progress_string, filenumber
 
         # filename change
         dropdown_filename.change(
@@ -91,6 +103,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                 display_partial_instant,
                 display_complete,
                 progress,
+                dropdown_filenumber,
             ],
         )
 
