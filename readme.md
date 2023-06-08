@@ -8,6 +8,12 @@
 
 `pip3 install git+https://github.com/jjshoots/SAMtool`
 
+Alternatively, if you want the experimental _crayon mode_:
+
+`pip3 install git+https://github.com/jjshoots/SAMtool@crayon`
+
+Crayon mode is slightly slower in loading images, but I mean, you get a crayon! :D
+
 ## Usage
 
 1. `samtool --imagedir <images directory> --labeldir <labels directory> --annotations <annotations.yaml file>`
