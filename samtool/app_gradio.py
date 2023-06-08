@@ -16,6 +16,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             labeldir,
         )
 
+        # hacky asynchronous update thing
+        checkbox_asyncer = gr.Checkbox(value=False, visible=False, show_label=False)
+
         """BUILD INTERFACE"""
         # annotation tools
         with gr.Row():
@@ -28,7 +31,11 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                 )
                 with gr.Row():
                     checkbox_validity = gr.Checkbox(value=True, label="Validity")
-                    checkbox_instant = gr.Checkbox(value=False, label="Instant Mode (Recommended)")
+                    radio_mode = gr.Radio(
+                        choices=["Normal", "Instant", "Crayon"],
+                        value="Normal",
+                        label="Mode",
+                    )
 
             with gr.Column(scale=1):
                 # file selection
@@ -59,6 +66,15 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     )
                     button_reset_all = gr.Button(value="Reset All", variant="secondary")
 
+        # warning for crayon mode
+        textbox_crayon = gr.Textbox(
+            label="WARNING",
+            value="""CRAYON MODE IS HIGHLY EXPERIMENTAL AND BUGGY! ACCURATE PERFORMANCE IS NOT GUARANTEED!
+            That said, what you see on the right image is accurate, so play around if you must.""",
+            lines=2,
+            visible=False,
+        )
+
         with gr.Row():
             # the displays for annotation
             display_partial_normal = gr.Image(
@@ -67,17 +83,26 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             display_partial_instant = gr.Image(
                 interactive=False, show_label=False, visible=False
             ).style(width=480)
+            display_partial_crayon = gr.Image(
+                interactive=True, show_label=False, tool="sketch", visible=False
+            ).style(height=480)
+
+            # the display for annotation
             display_complete = gr.Image(
                 interactive=False, label="Complete Annotation"
             ).style(width=480)
 
-            # hacky asynchronous update thing
-            checkbox_asyncer = gr.Checkbox(value=False, visible=False, show_label=False)
-
-        # approve the selection
+        # accept the selection
         with gr.Row():
-            button_accept = gr.Button(value="Approve", variant="primary", visible=True)
-            button_negate = gr.Button(value="Negate", variant="secondary", visible=True)
+            button_accept_normal = gr.Button(
+                value="Accept", variant="primary", visible=True
+            )
+            button_negate_normal = gr.Button(
+                value="Negate", variant="secondary", visible=True
+            )
+            button_accept_crayon = gr.Button(
+                value="Accept", variant="primary", visible=True
+            )
 
         """DEFINE INTERFACE FUNCTIONALITY"""
 
@@ -95,7 +120,14 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             filenumber = str(seeker.all_images.index(filename))
             base_image = sam.reset(filename)
             comp_image = sam.get_comp_image(filename)
-            return base_image, base_image, comp_image, progress_string, filenumber
+            return (
+                base_image,
+                base_image,
+                base_image,
+                comp_image,
+                progress_string,
+                filenumber,
+            )
 
         # filename change
         dropdown_filename.change(
@@ -104,6 +136,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             outputs=[
                 display_partial_normal,
                 display_partial_instant,
+                display_partial_crayon,
                 display_complete,
                 progress,
                 dropdown_filenumber,
@@ -168,11 +201,11 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             sam.add_coords_validity(np.array(event.index), validity)
             return sam.update_part_image(label)
 
-        def surrogate_part_to_comp_mask(filename, label, add):
+        def surrogate_part_to_comp_mask(filename, label, mode, add):
             sam.part_to_comp_mask(filename, label, add=add)
             base_image = sam.reset(filename, compute_embeddings=False)
             comp_image = sam.get_comp_image(filename)
-            return base_image, comp_image
+            return base_image, base_image, comp_image
 
         # normal mode functionality
         display_partial_normal.select(
@@ -180,15 +213,15 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             inputs=[checkbox_validity, radio_label],
             outputs=display_partial_normal,
         )
-        button_accept.click(
-            fn=lambda x, k: surrogate_part_to_comp_mask(x, k, add=True),
-            inputs=[dropdown_filename, radio_label],
-            outputs=[display_partial_normal, display_complete],
+        button_accept_normal.click(
+            fn=lambda x, l, m: surrogate_part_to_comp_mask(x, l, m, add=True),
+            inputs=[dropdown_filename, radio_label, radio_mode],
+            outputs=[display_partial_normal, display_partial_crayon, display_complete],
         )
-        button_negate.click(
-            fn=lambda x, k: surrogate_part_to_comp_mask(x, k, add=False),
-            inputs=[dropdown_filename, radio_label],
-            outputs=[display_partial_normal, display_complete],
+        button_negate_normal.click(
+            fn=lambda x, l, m: surrogate_part_to_comp_mask(x, l, m, add=False),
+            inputs=[dropdown_filename, radio_label, radio_mode],
+            outputs=[display_partial_normal, display_partial_crayon, display_complete],
         )
 
         # instant update
@@ -215,6 +248,25 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             outputs=checkbox_asyncer,
         )
 
+        # crayon update
+        def crayon_update(drawing: dict, filename, label, validity):
+            mask = drawing["mask"][..., 0] == 255
+            sam.part_mask = mask
+            sam.part_to_comp_mask(filename, label, add=validity)
+            return sam.get_comp_image(filename)
+
+        # crayon only has one button
+        button_accept_crayon.click(
+            fn=crayon_update,
+            inputs=[
+                display_partial_crayon,
+                dropdown_filename,
+                radio_label,
+                checkbox_validity,
+            ],
+            outputs=display_complete,
+        )
+
         # hacky async update
         def async_update_prediction_instant(filename):
             return sam.get_comp_image(filename)
@@ -226,35 +278,57 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             outputs=display_complete,
         )
 
-        # whether slow or instant mode
-        def mode_change(instant_mode):
-            if instant_mode:
+        # whether normal, instant, or crayon mode
+        def mode_change(mode):
+            if mode == "Normal":
+                return (
+                    gr.update(visible=True),
+                    gr.update(visible=True),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                    gr.update(visible=True),
+                    gr.update(visible=True),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                )
+            elif mode == "Instant":
                 return (
                     gr.update(visible=False),
                     gr.update(visible=False),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                    gr.update(visible=True),
+                    gr.update(visible=False),
+                )
+            elif mode == "Crayon":
+                return (
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                    gr.update(visible=True),
+                    gr.update(visible=True),
+                    gr.update(visible=True),
                     gr.update(visible=False),
                     gr.update(visible=False),
                     gr.update(visible=True),
                 )
             else:
-                return (
-                    gr.update(visible=True),
-                    gr.update(visible=True),
-                    gr.update(visible=True),
-                    gr.update(visible=True),
-                    gr.update(visible=False),
-                )
+                raise ValueError(f"Unknown mode {mode}.")
 
         # hook the mode change button
-        checkbox_instant.change(
+        radio_mode.change(
             fn=mode_change,
-            inputs=checkbox_instant,
+            inputs=radio_mode,
             outputs=[
-                button_accept,
-                button_negate,
+                button_accept_normal,
+                button_negate_normal,
+                button_accept_crayon,
+                textbox_crayon,
                 button_reset_selection,
                 display_partial_normal,
                 display_partial_instant,
+                display_partial_crayon,
             ],
         )
 
