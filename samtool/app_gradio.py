@@ -113,17 +113,21 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             outputs=dropdown_filename,
         )
 
-        def surrogate_reset(filename):
+        def surrogate_reset(filename, mode):
             """Resets everything because the filename has changed."""
             done_labels = len(os.listdir(labeldir))
             progress_string = f"{done_labels} of {len(seeker.all_images)} completed."
             filenumber = str(seeker.all_images.index(filename))
             base_image = sam.reset(filename)
             comp_image = sam.get_comp_image(filename)
+
+            # choose which image to output to to save bandwidth
+            which_base = []
+            which_base.append(base_image if mode == "Normal" else None)
+            which_base.append(base_image if mode == "Instant" else None)
+            which_base.append(base_image if mode == "Crayon" else None)
             return (
-                base_image,
-                base_image,
-                base_image,
+                *which_base,
                 comp_image,
                 progress_string,
                 filenumber,
@@ -132,7 +136,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         # filename change
         dropdown_filename.change(
             fn=surrogate_reset,
-            inputs=dropdown_filename,
+            inputs=[dropdown_filename, radio_mode],
             outputs=[
                 display_partial_normal,
                 display_partial_instant,
@@ -181,7 +185,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
         # clear the selection image
         button_reset_selection.click(
-            fn=sam.clear_coords_validity, outputs=display_partial_normal
+            fn=sam.clear_coords_validity_part, outputs=display_partial_normal
         )
         # clear only the labels in the complete image
         button_reset_label.click(
@@ -279,7 +283,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         )
 
         # whether normal, instant, or crayon mode
-        def mode_change(mode):
+        def mode_change(filename, mode):
+            sam.clear_coords_validity_part()
+
             if mode == "Normal":
                 return (
                     gr.update(visible=True),
@@ -290,6 +296,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     gr.update(visible=True),
                     gr.update(visible=False),
                     gr.update(visible=False),
+                    sam.base_image,
+                    None,
+                    None,
                 )
             elif mode == "Instant":
                 return (
@@ -301,6 +310,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     gr.update(visible=False),
                     gr.update(visible=True),
                     gr.update(visible=False),
+                    None,
+                    sam.base_image,
+                    None,
                 )
             elif mode == "Crayon":
                 return (
@@ -312,6 +324,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     gr.update(visible=False),
                     gr.update(visible=False),
                     gr.update(visible=True),
+                    None,
+                    None,
+                    sam.base_image,
                 )
             else:
                 raise ValueError(f"Unknown mode {mode}.")
@@ -319,13 +334,16 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         # hook the mode change button
         radio_mode.change(
             fn=mode_change,
-            inputs=radio_mode,
+            inputs=[dropdown_filename, radio_mode],
             outputs=[
                 button_accept_normal,
                 button_negate_normal,
                 button_accept_crayon,
                 textbox_crayon,
                 button_reset_selection,
+                display_partial_normal,
+                display_partial_instant,
+                display_partial_crayon,
                 display_partial_normal,
                 display_partial_instant,
                 display_partial_crayon,

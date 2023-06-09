@@ -125,9 +125,10 @@ class Sammer:
 
         return image
 
-    def clear_coords_validity(self) -> np.ndarray:
+    def clear_coords_validity_part(self) -> np.ndarray:
         self.coords = list()
         self.validity = list()
+        self.part_mask = np.array(None)
 
         return self.base_image
 
@@ -183,7 +184,7 @@ class Sammer:
         np.save(os.path.join(self.labels_path, filename), comp_mask)
 
         # reset the coords and validity
-        self.clear_coords_validity()
+        self.clear_coords_validity_part()
 
     def clear_comp_mask(self, filename: str, label: None | str = None):
         # get the compound mask
@@ -202,7 +203,7 @@ class Sammer:
             np.save(os.path.join(self.labels_path, filename), comp_mask)
 
         # reset the coords and validity
-        self.clear_coords_validity()
+        self.clear_coords_validity_part()
 
     @staticmethod
     def show_mask(image: np.ndarray, mask: np.ndarray, color_index=0):
