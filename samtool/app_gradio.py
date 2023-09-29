@@ -4,17 +4,14 @@ import os
 import gradio as gr
 import numpy as np
 
-from samtool.sammer import FileSeeker, Sammer
+from samtool.frontend_handlers import FileSeeker, SammedImage
 
+max_handlers = 20
 
 def create_app(imagedir: str, labeldir: str, annotations: str):
     with gr.Blocks() as app:
         seeker = FileSeeker(imagedir, labeldir, annotations)
-        sam = Sammer(
-            seeker.all_labels,
-            imagedir,
-            labeldir,
-        )
+        handlers: dict[str, SammedImage] = dict()
 
         # hacky asynchronous update thing
         checkbox_asyncer = gr.Checkbox(value=False, visible=False, show_label=False)
@@ -25,8 +22,8 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             with gr.Column(scale=1):
                 # annotation tools
                 radio_label = gr.Radio(
-                    choices=list(seeker.all_labels.keys()),
-                    value=list(seeker.all_labels.keys())[0],
+                    choices=list(seeker.labels.keys()),
+                    value=list(seeker.labels.keys())[0],
                     label="Label",
                 )
                 with gr.Row():
@@ -119,11 +116,21 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
         def surrogate_reset(filename, mode):
             """Resets everything because the filename has changed."""
+
+            # if we haven't encountered this image before, add it to the list of images we're handling
+            if filename not in handlers:
+                image_path, label_path = seeker.get_full_paths(filename)
+                handlers[filename] = SammedImage(labels=seeker.labels, image_path=image_path, label_path=label_path)
+
+            # don't memory leak
+            if len(handlers) > max_handlers:
+                del handlers[next(iter(handlers))]
+
             done_labels = len(os.listdir(labeldir))
             progress_string = f"{done_labels} of {len(seeker.all_images)} completed."
             filenumber = str(seeker.all_images.index(filename))
-            base_image = sam.reset(filename)
-            comp_image = sam.get_comp_image(filename)
+            base_image = handlers[filename].reset()
+            comp_image = handlers[filename].get_comp_image()
 
             # choose which image to output to to save bandwidth
             which_base = []
@@ -182,14 +189,16 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         )
 
         def surrogate_clear_comp_mask(filename, label):
-            sam.clear_comp_mask(filename, label)
-            base_image = sam.reset(filename, compute_embeddings=False)
-            comp_image = sam.get_comp_image(filename)
+            handlers[filename].clear_comp_mask(label)
+            base_image = handlers[filename].reset()
+            comp_image = handlers[filename].get_comp_image()
             return base_image, comp_image
 
         # clear the selection image
         button_reset_selection.click(
-            fn=sam.clear_coords_validity_part, outputs=display_partial_normal
+            fn=lambda f: handlers[f].clear_coords_validity_part(),
+            inputs=dropdown_filename,
+            outputs=display_partial_normal,
         )
         # clear only the labels in the complete image
         button_reset_label.click(
@@ -205,20 +214,21 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         )
 
         # normal update
-        def update_prediction_normal(event: gr.SelectData, validity, label):
-            sam.add_coords_validity(np.array(event.index), validity)
-            return sam.update_part_image(label)
+        def update_prediction_normal(event: gr.SelectData, filename, validity, label):
+            handlers[filename].add_coords_validity(np.array(event.index), validity)
+            return handlers[filename].update_part_image(label)
 
         def surrogate_part_to_comp_mask(filename, label, mode, add):
-            sam.part_to_comp_mask(filename, label, add=add)
-            base_image = sam.reset(filename, compute_embeddings=False)
-            comp_image = sam.get_comp_image(filename)
+            print("hello there")
+            handlers[filename].part_to_comp_mask(label, add=add)
+            base_image = handlers[filename].reset()
+            comp_image = handlers[filename].get_comp_image()
             return base_image, base_image, comp_image
 
         # normal mode functionality
         display_partial_normal.select(
             fn=update_prediction_normal,
-            inputs=[checkbox_validity, radio_label],
+            inputs=[dropdown_filename, checkbox_validity, radio_label],
             outputs=display_partial_normal,
         )
         button_accept_normal.click(
@@ -237,9 +247,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             event: gr.SelectData, filename, label, validity, toggle
         ):
             # always work in valid selection mode, and use validity to determine whether to negate
-            sam.add_coords_validity(np.array(event.index), True)
-            sam.update_part_image(label)
-            sam.part_to_comp_mask(filename, label, add=validity)
+            handlers[filename].add_coords_validity(np.array(event.index), True)
+            handlers[filename].update_part_image(label)
+            handlers[filename].part_to_comp_mask(label, add=validity)
 
             # toggle the async function
             return not toggle
@@ -259,9 +269,9 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
         # crayon update
         def crayon_update(drawing: dict, filename, label, validity):
             mask = drawing["mask"][..., 0] == 255
-            sam.part_mask = mask
-            sam.part_to_comp_mask(filename, label, add=validity)
-            return sam.get_comp_image(filename)
+            handlers[filename].part_mask = mask
+            handlers[filename].part_to_comp_mask(label, add=validity)
+            return handlers[filename].get_comp_image()
 
         # crayon only has one button
         button_accept_crayon.click(
@@ -277,7 +287,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
         # hacky async update
         def async_update_prediction_instant(filename):
-            return sam.get_comp_image(filename)
+            return handlers[filename].get_comp_image()
 
         # async hook
         checkbox_asyncer.change(
@@ -288,7 +298,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
         # whether normal, instant, or crayon mode
         def mode_change(filename, mode):
-            sam.clear_coords_validity_part()
+            handlers[filename].clear_coords_validity_part()
 
             if mode == "Normal":
                 return (
@@ -300,7 +310,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     gr.update(visible=True),
                     gr.update(visible=False),
                     gr.update(visible=False),
-                    sam.base_image,
+                    handlers[filename].base_image,
                     None,
                     None,
                 )
@@ -315,7 +325,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     gr.update(visible=True),
                     gr.update(visible=False),
                     None,
-                    sam.base_image,
+                    handlers[filename].base_image,
                     None,
                 )
             elif mode == "Crayon":
@@ -330,7 +340,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                     gr.update(visible=True),
                     None,
                     None,
-                    sam.base_image,
+                    handlers[filename].base_image,
                 )
             else:
                 raise ValueError(f"Unknown mode {mode}.")

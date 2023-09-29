@@ -1,1 +1,1 @@
-from .app_gradio import main as main_gradio
+from samtool.app_gradio import main as main_gradio
