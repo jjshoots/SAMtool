@@ -102,7 +102,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
                 value="Negate", variant="secondary", visible=True
             )
             button_accept_crayon = gr.Button(
-                value="Accept", variant="primary", visible=True
+                value="Accept", variant="primary", visible=False
             )
 
         """DEFINE INTERFACE FUNCTIONALITY"""
