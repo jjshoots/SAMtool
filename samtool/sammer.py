@@ -31,14 +31,22 @@ class _SAMModel:
         )
         sam.to("cuda" if torch.cuda.is_available() else "cpu")
         self.predictor = SamPredictor(sam)
+        self.in_use = False
 
     def set_embedding(self, embedding):
         self.predictor.features = embedding
 
     def compute_embeddings(self, image: np.ndarray) -> torch.Tensor:
+        while self.in_use:
+            continue
+
+        self.in_use = True
+
         self.predictor.set_image(image)
         if self.predictor.features is None:
             raise AssertionError("SAM produced None embeddings. This cannot happen.")
+
+        self.in_use = False
 
         return torch.clone(self.predictor.features.detach())
 
