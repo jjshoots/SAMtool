@@ -255,6 +255,7 @@ class SammedImage:
 
         color = colors[color_index]
         image = image.astype(np.float32)
+        image[mask[...], :] *= 0.5
         image[mask[...], :] += color * 0.5
         image = np.clip(image, 0, 255).astype(np.uint8)
         return image
