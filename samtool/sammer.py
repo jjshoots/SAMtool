@@ -7,6 +7,8 @@ import yaml
 from segment_anything import SamPredictor, sam_model_registry
 
 from samtool.colors import colors
+from samtool.utils import (delete_label, label_exists, retrieve_label,
+                           save_label)
 
 
 class FileSeeker:
@@ -43,8 +45,11 @@ class FileSeeker:
                 break
 
             # we only care if unlabelled
-            maskfile = os.path.join(self.labels_path, f"{self.all_images[index]}.npy")
-            if not os.path.isfile(maskfile):
+            if label_exists(
+                labeldir=self.labels_path,
+                image_filename=filename,
+                num_channels=len(self.all_labels),
+            ):
                 break
 
         return self.all_images[index]
@@ -97,6 +102,10 @@ class Sammer:
         sam.to("cuda" if torch.cuda.is_available() else "cpu")
         self.predictor = SamPredictor(sam)
 
+    @property
+    def num_labels(self):
+        return len(self.labels)
+
     def reset(self, filename: str, compute_embeddings: bool = True):
         # update the base image
         imagefile = os.path.join(self.images_path, filename)
@@ -116,10 +125,17 @@ class Sammer:
         image = self.base_image
 
         # check if we have a complete mask
-        maskfile = os.path.join(self.labels_path, f"{filename}.npy")
-        if os.path.isfile(maskfile):
+        if label_exists(
+            labeldir=self.labels_path,
+            image_filename=filename,
+            num_channels=self.num_labels,
+        ):
             # draw the masks if we have it
-            comp_mask = np.load(maskfile)
+            comp_mask = retrieve_label(
+                labeldir=self.labels_path,
+                image_filename=filename,
+                num_channels=self.num_labels,
+            )
             for i, mask in enumerate(np.moveaxis(comp_mask, -1, 0).copy()):
                 image = self.show_mask(image, mask, i)
 
@@ -168,12 +184,19 @@ class Sammer:
         assert key in self.labels
 
         # get the compound mask
-        maskfile = os.path.join(self.labels_path, f"{filename}.npy")
-        if os.path.isfile(maskfile):
-            comp_mask = np.load(maskfile)
+        if label_exists(
+            labeldir=self.labels_path,
+            image_filename=filename,
+            num_channels=self.num_labels,
+        ):
+            comp_mask = retrieve_label(
+                labeldir=self.labels_path,
+                image_filename=filename,
+                num_channels=self.num_labels,
+            )
         else:
             comp_mask = np.zeros(
-                (*self.base_image.shape[:2], len(self.labels)), dtype=bool
+                (*self.base_image.shape[:2], self.num_labels), dtype=bool
             )
 
         # save the mask
@@ -181,26 +204,43 @@ class Sammer:
             comp_mask[..., self.labels[key]] |= self.part_mask
         else:
             comp_mask[..., self.labels[key]] &= np.logical_not(self.part_mask)
-        np.save(os.path.join(self.labels_path, filename), comp_mask)
+        save_label(
+            labeldir=self.labels_path,
+            image_filename=filename,
+            label=comp_mask,
+        )
 
         # reset the coords and validity
         self.clear_coords_validity_part()
 
     def clear_comp_mask(self, filename: str, label: None | str = None):
-        # get the compound mask
-        maskfile = os.path.join(self.labels_path, f"{filename}.npy")
-
-        if not os.path.isfile(maskfile):
+        if not label_exists(
+            labeldir=self.labels_path,
+            image_filename=filename,
+            num_channels=self.num_labels,
+        ):
             return
 
         # if full reset, delete the mask, otherwise, just override
         if label is None:
-            os.remove(maskfile)
+            delete_label(
+                labeldir=self.labels_path,
+                image_filename=filename,
+                num_channels=self.num_labels,
+            )
         else:
             assert label in self.labels
-            comp_mask = np.load(maskfile)
+            comp_mask = retrieve_label(
+                labeldir=self.labels_path,
+                image_filename=filename,
+                num_channels=self.num_labels,
+            )
             comp_mask[..., self.labels[label]] &= False
-            np.save(os.path.join(self.labels_path, filename), comp_mask)
+            save_label(
+                labeldir=self.labels_path,
+                image_filename=filename,
+                label=comp_mask,
+            )
 
         # reset the coords and validity
         self.clear_coords_validity_part()

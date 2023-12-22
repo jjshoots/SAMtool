@@ -4,6 +4,41 @@ import numpy as np
 from PIL import Image
 
 
+def label_exists(labeldir: str, image_filename: str, num_channels: int) -> bool:
+    """Tests whether the label exists for a given image.
+
+    Args:
+        labeldir (str): directory of the labels on the disk
+        image_filename (str): name of the image that corresponds to this label
+        num_channels (int): number of channels that is expected
+
+    Returns:
+        bool:
+    """
+    for i in range(num_channels):
+        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
+        if not os.path.isfile(os.path.join(labeldir, label_filename)):
+            return False
+    return True
+
+
+def delete_label(labeldir: str, image_filename: str, num_channels: int) -> None:
+    """Deletes the label for a specific image if it exists
+
+    Args:
+        labeldir (str): directory of the labels on the disk
+        image_filename (str): name of the image that corresponds to this label
+        num_channels (int): number of channels that is expected
+
+    Returns:
+        None:
+    """
+    for i in range(num_channels):
+        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
+        if os.path.isfile(os.path.join(labeldir, label_filename)):
+            os.remove(os.path.join(labeldir, label_filename))
+
+
 def save_label(labeldir: str, image_filename: str, label: np.ndarray) -> None:
     """Saves the label to a series of jpg images on the disk given a npy array.
 
