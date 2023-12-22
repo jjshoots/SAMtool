@@ -25,30 +25,31 @@ other: 3
 
 ## Labels Storage
 
-In the name of performance, all label arrays are stored as uncompressed numpy boolean arrays on disk.
-This results in the labels file being potentially very large.
-If you would like to optimize the storage of the data, one way of doing it is to use numpy's `packbits` function.
+All labels are stored as a series of jpg files on the disk.
+To operate on labels, we provide several helper functions:
 
-#### To compress labels
+### To retrieve labels
 
 ```python
 import os
-import numpy as np
+from samtool import retrieve_label
 
-labels_dir = "YOUR_LABELS_DIRECTORY"
-packed_labels_dir = "YOUR_PACKED_LABELS_DIRECTORY"
+all_labels = yaml.safe_load(open(annotations_path))
+num_labels = len(all_labels)
 
-for filename in os.listdir(labels_dir):
-    np.save(f"{packed_labels_dir}/{filename}", np.packbits(np.load(f"{labels_dir}/{filename}"), axis=0))
+for image_filename in os.listdir("./your_image_dir"):
+    npy_label = retrieve_label(label_dir="./your_label_dir", image_filename=image_filename, num_labels=num_labels)
 ```
 
-#### To read compressed labels
+### To check if a label exists
 
 ```python
 import os
-import numpy as np
+from samtool import label_exists
 
-packed_labels_dir = "YOUR_PACKED_LABELS_DIRECTORY"
-for filename in os.listdir(packed_labels_dir):
-    label = np.unpackbits(np.load(f"{packed_labels_dir}/{filename}"))
+all_labels = yaml.safe_load(open(annotations_path))
+num_labels = len(all_labels)
+
+for image_filename in os.listdir("./your_image_dir"):
+    has_label = label_exists(label_dir="./your_label_dir", image_filename=image_filename, num_labels=num_labels)
 ```
