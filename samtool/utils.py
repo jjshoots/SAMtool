@@ -22,21 +22,24 @@ def label_exists(labeldir: str, image_filename: str, num_channels: int) -> bool:
     return True
 
 
-def delete_label(labeldir: str, image_filename: str, num_channels: int) -> None:
+def delete_label(labeldir: str, image_filename: str) -> None:
     """Deletes the label for a specific image if it exists
 
     Args:
         labeldir (str): directory of the labels on the disk
         image_filename (str): name of the image that corresponds to this label
-        num_channels (int): number of channels that is expected
 
     Returns:
         None:
     """
-    for i in range(num_channels):
+    i = -1
+    while True:
+        i += 1
         label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
-        if os.path.isfile(os.path.join(labeldir, label_filename)):
-            os.remove(os.path.join(labeldir, label_filename))
+        if not os.path.isfile(os.path.join(labeldir, label_filename)):
+            return
+
+        os.remove(os.path.join(labeldir, label_filename))
 
 
 def save_label(labeldir: str, image_filename: str, label: np.ndarray) -> None:
@@ -57,21 +60,22 @@ def save_label(labeldir: str, image_filename: str, label: np.ndarray) -> None:
         im.save(os.path.join(labeldir, label_filename))
 
 
-def retrieve_label(labeldir: str, image_filename: str, num_channels: int) -> np.ndarray:
+def retrieve_label(labeldir: str, image_filename: str) -> np.ndarray:
     """retrieve_label.
 
     Args:
         labeldir (str): directory of the labels on the disk
         image_filename (str): name of the image that corresponds to this label
-        num_channels (int): number of channels that is expected
 
     Returns:
         np.ndarray: the label as an array of [W, H, C]
     """
     npy_list = []
-    for i in range(num_channels):
-        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
+    while True:
+        label_filename = os.path.splitext(image_filename)[0] + f"_{len(npy_list)}.jpg"
+        if not os.path.isfile(os.path.join(labeldir, label_filename)):
+            assert len(npy_list) != 0
+            return np.stack(npy_list, axis=-1)
+
         im = Image.open(os.path.join(labeldir, label_filename))
         npy_list.append(np.array(im))
-
-    return np.stack(npy_list, axis=-1)

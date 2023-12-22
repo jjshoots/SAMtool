@@ -134,7 +134,6 @@ class Sammer:
             comp_mask = retrieve_label(
                 labeldir=self.labels_path,
                 image_filename=filename,
-                num_channels=self.num_labels,
             )
             for i, mask in enumerate(np.moveaxis(comp_mask, -1, 0).copy()):
                 image = self.show_mask(image, mask, i)
@@ -192,7 +191,6 @@ class Sammer:
             comp_mask = retrieve_label(
                 labeldir=self.labels_path,
                 image_filename=filename,
-                num_channels=self.num_labels,
             )
         else:
             comp_mask = np.zeros(
@@ -226,14 +224,12 @@ class Sammer:
             delete_label(
                 labeldir=self.labels_path,
                 image_filename=filename,
-                num_channels=self.num_labels,
             )
         else:
             assert label in self.labels
             comp_mask = retrieve_label(
                 labeldir=self.labels_path,
                 image_filename=filename,
-                num_channels=self.num_labels,
             )
             comp_mask[..., self.labels[label]] &= False
             save_label(
