@@ -16,7 +16,7 @@ def label_exists(labeldir: str, image_filename: str, num_channels: int) -> bool:
         bool:
     """
     for i in range(num_channels):
-        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
+        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.png"
         if not os.path.isfile(os.path.join(labeldir, label_filename)):
             return False
     return True
@@ -35,7 +35,7 @@ def delete_label(labeldir: str, image_filename: str) -> None:
     i = -1
     while True:
         i += 1
-        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
+        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.png"
         if not os.path.isfile(os.path.join(labeldir, label_filename)):
             return
 
@@ -43,7 +43,7 @@ def delete_label(labeldir: str, image_filename: str) -> None:
 
 
 def save_label(labeldir: str, image_filename: str, label: np.ndarray) -> None:
-    """Saves the label to a series of jpg images on the disk given a npy array.
+    """Saves the label to a series of png images on the disk given a npy array.
 
     Args:
         labeldir (str): directory of the labels on the disk
@@ -55,7 +55,7 @@ def save_label(labeldir: str, image_filename: str, label: np.ndarray) -> None:
     """
     assert len(label.shape) == 3
     for i, layer in enumerate(np.transpose(label, (2, 0, 1))):
-        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.jpg"
+        label_filename = os.path.splitext(image_filename)[0] + f"_{i}.png"
         im = Image.fromarray(layer)
         im.save(os.path.join(labeldir, label_filename))
 
@@ -72,7 +72,7 @@ def retrieve_label(labeldir: str, image_filename: str) -> np.ndarray:
     """
     npy_list = []
     while True:
-        label_filename = os.path.splitext(image_filename)[0] + f"_{len(npy_list)}.jpg"
+        label_filename = os.path.splitext(image_filename)[0] + f"_{len(npy_list)}.png"
         if not os.path.isfile(os.path.join(labeldir, label_filename)):
             assert len(npy_list) != 0
             return np.stack(npy_list, axis=-1)
