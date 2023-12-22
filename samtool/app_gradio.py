@@ -77,9 +77,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
 
         with gr.Row():
             # the displays for annotation
-            display_partial_normal = gr.Image(
-                interactive=False, show_label=False
-            )
+            display_partial_normal = gr.Image(interactive=False, show_label=False)
             display_partial_instant = gr.Image(
                 interactive=False, show_label=False, visible=False
             )
@@ -91,9 +89,7 @@ def create_app(imagedir: str, labeldir: str, annotations: str):
             )
 
             # the display for annotation
-            display_complete = gr.Image(
-                interactive=False, label="Complete Annotation"
-            )
+            display_complete = gr.Image(interactive=False, label="Complete Annotation")
 
         # accept the selection
         with gr.Row():
