@@ -34,11 +34,8 @@ To operate on labels, we provide several helper functions:
 import os
 from samtool import retrieve_label
 
-all_labels = yaml.safe_load(open(annotations_path))
-num_labels = len(all_labels)
-
 for image_filename in os.listdir("./your_image_dir"):
-    npy_label = retrieve_label(label_dir="./your_label_dir", image_filename=image_filename, num_labels=num_labels)
+    npy_label = retrieve_label(label_dir="./your_label_dir", image_filename=image_filename)
 ```
 
 ### To check if a label exists
